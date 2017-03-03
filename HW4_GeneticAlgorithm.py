@@ -18,6 +18,8 @@ geneSize = 30
 popSize = 8
 
 
+#comment
+
 
 
 
