@@ -2,6 +2,8 @@ __authors__ = 'Danh Nguyen and Nick Larson'
 
 import random
 import sys
+import unittest
+import itertools
 sys.path.append("..")  #so other modules can be found in parent dir
 from Player import *
 from Constants import *
@@ -17,9 +19,9 @@ geneSize = 30
 #general population size to create
 popSize = 8
 
-
-
-
+#static percentage modifiers for fitness scoring
+TURNSTAT = 1 #.7
+#ENEMYFOODDIST = .3
 
 ##
 #AIPlayer
@@ -55,7 +57,14 @@ class AIPlayer(Player):
         #records number of games agent has played
         self.gamesPlayed = 0
 
-        self.firstMove
+        #stores the most moves taken so far for any games
+        self.mostTurnsTaken = 0
+        #stores the farthest food distance seen so far
+        self.greatestFoodDist = 0
+        #turn counter, reset once individual game over
+        self.turnCounter = 0
+
+        #self.firstMove
 
     ##
     #getPlacement
@@ -130,7 +139,7 @@ class AIPlayer(Player):
         for i in range(0, popSize):
             #create the genes
             for j in range(0, geneSize):
-            gene.append(random.randint(0, geneMax))
+                gene.append(random.randint(0, geneMax))
 
         return gene
 
@@ -149,9 +158,17 @@ class AIPlayer(Player):
         geneSplitPos = random.randint(0, len(parent1))
 
         #mate the two parents thru crossover
-        child1 = parent1[:geneSplitPos] + parent2[geneSplitPos:]
-        child2 = parent2[:geneSplitPos] + parent2[geneSplitPos:]
+        child = parent1[:geneSplitPos] + parent2[geneSplitPos:]
+        placementSum= []
+        #for coords in child:
+        #    placementSum.append(coords[0] + coords[1])
+        for a, b in itertools.combinations(child, 2):
+            if cmp(a,b) == 0:
+                print "matching coordinates"
 
+        #child2 = parent2[:geneSplitPos] + parent2[geneSplitPos:]
+
+        return child
 
     ##
     # generateNextGen
@@ -160,14 +177,45 @@ class AIPlayer(Player):
     # Parameters:
     #   population - the population of genes
     def generateNextGen(self, population):
-        #calculate total fitness across all genes
+        #Reset the child populations
+        childPop = []
+        #use the longest game as the best (100% mating chance)
+        localPerfect = self.mostTurnsTaken * 2
+        #reset most turns taken
+        self.mostTurnsTaken = 0
+        size = len(population)
 
+        while count < popSize:
+            parent1Index = random.randInt(0, popSize)
+            parent2Range = range(0,parent1Index) + range(parent1Index, popSize)
+            parent2Index = choice(parent2Range)
+            if(parent1Index == parent2Index):
+                print "Error, parents indexes are the same"
+                break
+            parent1 = population[parent1Index]
+            parent2 = population[parent2Index]
+
+            summedScores = self.geneFitnessScores[parent1Index] + self.geneFitnessScores[parent2Index]
+            passingScore = random(0, localPerfect)
+            if summedScores > passingScore:
+                count += 1
+                childPop.append(self.mateParents(parent1, parent2))
 
         #return the new population
         return childPop
 
-
-
+    ##
+    #evaluateFitness
+    #
+    #Description: Looks at the gene and determines its fitness score
+    #
+    #Return:
+    #       score: the evaluation of the gene
+    def evaluateFitness(self):
+        score = self.turnCounter*TURNSTAT
+        if score > self.mostTurnsTaken:
+            self.mostTurnsTaken = score
+        return score
     ##
     #getMove
     #Description: Gets the next move from the Player.
@@ -179,9 +227,9 @@ class AIPlayer(Player):
     ##
     def getMove(self, currentState):
         #print state layout in first phase of game
-        if self.firstMove:
-            asciiPrintState(currentState)
-            self.firstMove = False
+        #if self.firstMove:
+        #    asciiPrintState(currentState)
+        #    self.firstMove = False
 
         moves = listAllLegalMoves(currentState)
         selectedMove = moves[random.randint(0,len(moves) - 1)];
@@ -191,6 +239,8 @@ class AIPlayer(Player):
         while (selectedMove.moveType == BUILD and numAnts >= 3):
             selectedMove = moves[random.randint(0,len(moves) - 1)];
 
+        if selectedMove == Move(End, None, None)
+            self.turnCounter += 1
         return selectedMove
 
     ##
@@ -206,9 +256,6 @@ class AIPlayer(Player):
         #Attack a random enemy.
         return enemyLocations[random.randint(0, len(enemyLocations) - 1)]
 
-
-
-
     ##
     #registerWin
     #Description: Tells the player if they won or not
@@ -217,14 +264,37 @@ class AIPlayer(Player):
     #   hasWon - True if the player won the game. False if they lost (Boolean)
     #
     def registerWin(self, hasWon):
+        ##currentGene = self.currentGenePop[self.gamesPlayed]
         #increment number of finished games
         self.gamesPlayed += 1
-
-        if hasWon:
-            print("Player wins the game!")
-
-
-
-
-            #rest number of played games
+        #score the gene, add the score to the fitness list
+        self.geneFitnessScores[].append(self.evaluateFitness())
+        #Reset the turn counter for the next game
+        self.turnCounter = 0
+        if self.gamesPlayed == popSize:
             self.gamesPlayed = 0
+            #make new genes based on the better parents
+        else:
+            nextGene = self.currentGenePop[self.gamesPlayed]
+
+################################################################################
+## UNIT TESTS
+class geneticTests(unittest.TestCase):
+
+    def test_RegisterWin(self):
+        #testSize = random.randint(0,10)
+        #self.assertFalse(True)
+        movesToLose = 10
+        #closestDist = 10
+        fitness = 0.0
+        #registerWin should take movesToLose, and closestDist as variables
+        #fitness will be subbed in directly for now, will be updated soon
+        fitness = movesToLose*MOVESTAT # + closestDist * ENEMYFOODDIST
+        #fitness should equal 10 in this case, pretending best score modifyer is 12
+        fitnessPercentage =  fitness/12
+        print "Fitness Score:" + str(fitnessPercentage)
+        self.assertGreater(1, fitnessPercentage), "Bad score, fitnessPercentage greater than 1"
+
+
+if __name__ == '__main__':
+    unittest.main()
