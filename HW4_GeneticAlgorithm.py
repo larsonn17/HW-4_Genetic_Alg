@@ -19,9 +19,7 @@ geneSize = 30
 #general population size to create
 popSize = 8
 
-#static percentage modifiers for fitness scoring
-TURNSTAT = 1 #.7
-#ENEMYFOODDIST = .3
+geneMax = 9
 
 ##
 #AIPlayer
@@ -42,8 +40,6 @@ class AIPlayer(Player):
     ##
     def __init__(self, inputPlayerId):
         super(AIPlayer,self).__init__(inputPlayerId, "SPORE")
-
-        self.depthLimit = 1
 
         #list of lists to store our current population of genes
         self.curGenePop = []
@@ -81,29 +77,20 @@ class AIPlayer(Player):
     #Return: The coordinates of where the construction is to be placed
     ##
     def getPlacement(self, currentState):
-        numToPlace = 0
-        #implemented by students to return their next move
+        if not self.curGenePop:
+            self.initGenePop()
+        moves = []
         if currentState.phase == SETUP_PHASE_1:    #stuff on my side
-            numToPlace = 11
-            moves = []
-            for i in range(0, numToPlace):
-                move = None
-                while move == None:
-                    #Choose any x location
-                    x = random.randint(0, 9)
-                    #Choose any y location on your side of the board
-                    y = random.randint(0, 3)
-                    #Set the move if this space is empty
-                    if currentState.board[x][y].constr == None and (x, y) not in moves:
-                        move = (x, y)
-                        #Just need to make the space non-empty. So I threw whatever I felt like in there.
-                        currentState.board[x][y].constr == True
-                moves.append(move)
+            print self.gamesPlayed
+            print self.curGenePop
+            print "new line"
+            for coords in self.curGenePop[self.gamesPlayed]:
+                moves.append(coords)
             return moves
+
         elif currentState.phase == SETUP_PHASE_2:   #stuff on foe's side
-            numToPlace = 2
             moves = []
-            for i in range(0, numToPlace):
+            for i in range(0, 2):
                 move = None
                 while move == None:
                     #Choose any x location
@@ -127,21 +114,33 @@ class AIPlayer(Player):
     # initGenePop
     # Description: Initializes the population of genes with random values and reset
     #              the fitness list to default values
-    # Parameters:
-    #    currentState - The state of the current game waiting for the player's move (GameState)
     #
     # Return: None
     # #
-    def initGenePop(self, geneSize):
-        gene = []
+    def initGenePop(self):
+        numToPlace = 11
+        index = 0 #counter for constructs and grass we will place
+        count = 0 #counter for gene indexes of population list
 
-        #initialize the two populations
-        for i in range(0, popSize):
-            #create the genes
-            for j in range(0, geneSize):
-                gene.append(random.randint(0, geneMax))
+        for count in range(0, popSize):
+            if index < numToPlace:
+                #Choose any x location
+                x = random.randint(0, 9)
+                #Choose any y location on your side of the board
+                y = random.randint(0, 3)
+                tup = (x, y)
+                print tup
+                self.curGenePop[count].append(tup)
+                for x,y in itertools.combinations(self.curGenePop[count], 2):
+                    if cmp(x,y) != 0: #check that x and y are not the same coords
+                        index += 1
 
-        return gene
+            if len(self.curGenePop[count]) > 11:
+                print "ERROR, initial list too big"
+
+            if index > 11:
+                count += 1
+                index = 0
 
     # #
     # mateParents
@@ -158,15 +157,15 @@ class AIPlayer(Player):
         geneSplitPos = random.randint(0, len(parent1))
 
         #mate the two parents thru crossover
-        child = parent1[:geneSplitPos] + parent2[geneSplitPos:]
-        placementSum= []
-        #for coords in child:
-        #    placementSum.append(coords[0] + coords[1])
+        index = random.int(0,1)
+        if index == 0:
+            child = parent1[:geneSplitPos] + parent2[geneSplitPos:]
+        else:
+            child = parent2[:geneSplitPos] + parent1[geneSplitPos:]
+
         for a, b in itertools.combinations(child, 2):
             if cmp(a,b) == 0:
                 print "matching coordinates"
-
-        #child2 = parent2[:geneSplitPos] + parent2[geneSplitPos:]
 
         return child
 
@@ -212,7 +211,7 @@ class AIPlayer(Player):
     #Return:
     #       score: the evaluation of the gene
     def evaluateFitness(self):
-        score = self.turnCounter*TURNSTAT
+        score = self.turnCounter
         if score > self.mostTurnsTaken:
             self.mostTurnsTaken = score
         return score
@@ -239,7 +238,7 @@ class AIPlayer(Player):
         while (selectedMove.moveType == BUILD and numAnts >= 3):
             selectedMove = moves[random.randint(0,len(moves) - 1)];
 
-        if selectedMove == Move(End, None, None)
+        if selectedMove == Move(End, None, None):
             self.turnCounter += 1
         return selectedMove
 
@@ -264,18 +263,17 @@ class AIPlayer(Player):
     #   hasWon - True if the player won the game. False if they lost (Boolean)
     #
     def registerWin(self, hasWon):
-        ##currentGene = self.currentGenePop[self.gamesPlayed]
+        #score the gene, add the score to the fitness list
+        self.geneFitnessScores[currentGene].append(self.evaluateFitness())
         #increment number of finished games
         self.gamesPlayed += 1
-        #score the gene, add the score to the fitness list
-        self.geneFitnessScores[].append(self.evaluateFitness())
         #Reset the turn counter for the next game
         self.turnCounter = 0
         if self.gamesPlayed == popSize:
             self.gamesPlayed = 0
             #make new genes based on the better parents
         else:
-            nextGene = self.currentGenePop[self.gamesPlayed]
+            nextGene = self.curGenePop[self.gamesPlayed]
 
 ################################################################################
 ## UNIT TESTS
